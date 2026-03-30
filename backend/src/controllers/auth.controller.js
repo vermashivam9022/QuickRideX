@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import sessionModel from '../model/session.model.js'
 import userModel from '../model/users.model.js'
+import { uploadFile } from '../utils/cloudinary.js'
 
 function sanitizeUser(user) {
     return {
@@ -62,6 +63,25 @@ async function register(req, res) {
     const adminEmails = getAdminEmails()
     const isAdmin = adminEmails.includes(normalizedEmail)
 
+    let uploadedLicenseUrl = typeof licenseUrl === 'string' ? licenseUrl : ''
+    let uploadedCollegeIdUrl = typeof collegeIdUrl === 'string' ? collegeIdUrl : ''
+
+    if (drivingLicenseFile?.path) {
+        const uploaded = await uploadFile(drivingLicenseFile.path)
+        if (!uploaded?.success || !uploaded?.data?.secure_url) {
+            return res.status(500).json({ message: uploaded?.error || 'Failed to upload driving license' })
+        }
+        uploadedLicenseUrl = uploaded.data.secure_url
+    }
+
+    if (collegeIdFile?.path) {
+        const uploaded = await uploadFile(collegeIdFile.path)
+        if (!uploaded?.success || !uploaded?.data?.secure_url) {
+            return res.status(500).json({ message: uploaded?.error || 'Failed to upload college ID' })
+        }
+        uploadedCollegeIdUrl = uploaded.data.secure_url
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10)
     let user
     try {
@@ -72,8 +92,8 @@ async function register(req, res) {
             password: hashedPassword,
             role: isAdmin ? 'admin' : 'student',
             isApproved: isAdmin ? true : true,
-            licenseUrl: drivingLicenseFile ? `/uploads/${drivingLicenseFile.filename}` : licenseUrl || '',
-            collegeIdUrl: collegeIdFile ? `/uploads/${collegeIdFile.filename}` : collegeIdUrl || '',
+            licenseUrl: uploadedLicenseUrl,
+            collegeIdUrl: uploadedCollegeIdUrl,
         })
     } catch (error) {
         if (error?.code === 11000) {

@@ -1,6 +1,7 @@
 import bikeModel from '../model/bike.model.js'
 import bookingModel from '../model/booking.model.js'
 import shopStatusModel from '../model/shop-status.model.js'
+import { uploadFile } from '../utils/cloudinary.js'
 
 function parseOptionalBoolean(value) {
   if (typeof value === 'boolean') return value
@@ -112,7 +113,15 @@ async function createBike(req, res) {
     bikePhotoUrl,
     isAvailable,
   } = req.body ?? {}
-  const uploadedPhotoUrl = req.file ? `/uploads/${req.file.filename}` : ''
+  let uploadedPhotoUrl = ''
+
+  if (req.file?.path) {
+    const uploaded = await uploadFile(req.file.path)
+    if (!uploaded?.success || !uploaded?.data?.secure_url) {
+      return res.status(500).json({ message: uploaded?.error || 'Failed to upload bike photo' })
+    }
+    uploadedPhotoUrl = uploaded.data.secure_url
+  }
 
   if (!name || !numberPlate) {
     return res.status(400).json({ message: 'Name and numberPlate are required' })
@@ -159,7 +168,15 @@ async function updateBike(req, res) {
     bikePhotoUrl,
     isAvailable,
   } = req.body ?? {}
-  const uploadedPhotoUrl = req.file ? `/uploads/${req.file.filename}` : ''
+  let uploadedPhotoUrl = ''
+
+  if (req.file?.path) {
+    const uploaded = await uploadFile(req.file.path)
+    if (!uploaded?.success || !uploaded?.data?.secure_url) {
+      return res.status(500).json({ message: uploaded?.error || 'Failed to upload bike photo' })
+    }
+    uploadedPhotoUrl = uploaded.data.secure_url
+  }
 
   const bike = await bikeModel.findById(id)
   if (!bike) {
@@ -225,9 +242,14 @@ async function uploadBikePhoto(req, res) {
     return res.status(400).json({ message: 'Only image files are allowed' })
   }
 
+  const uploaded = await uploadFile(file.path)
+  if (!uploaded?.success || !uploaded?.data?.secure_url) {
+    return res.status(500).json({ message: uploaded?.error || 'Failed to upload bike photo' })
+  }
+
   return res.status(201).json({
     message: 'Bike photo uploaded successfully',
-    bikePhotoUrl: `/uploads/${file.filename}`,
+    bikePhotoUrl: uploaded.data.secure_url,
   })
 }
 
