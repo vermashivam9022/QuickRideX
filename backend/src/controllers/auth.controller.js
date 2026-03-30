@@ -36,6 +36,15 @@ function signAccessToken(user, sessionId) {
     )
 }
 
+function getRefreshCookieOptions() {
+    const isProduction = process.env.NODE_ENV === 'production'
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'strict',
+    }
+}
+
 async function register(req, res) {
     const { name, email, mobileNo, password, licenseUrl, collegeIdUrl } = req.body
     const drivingLicenseFile = req.files?.drivingLicenseFile?.[0]
@@ -127,9 +136,7 @@ async function register(req, res) {
     await session.save()
 
     res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        ...getRefreshCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
@@ -179,9 +186,7 @@ async function login(req, res) {
     await session.save()
 
     res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        ...getRefreshCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
@@ -239,13 +244,13 @@ async function logout(req, res) {
         // Ignore invalid refresh token during logout.
     }
 
-    res.clearCookie('refreshToken')
+    res.clearCookie('refreshToken', getRefreshCookieOptions())
     return res.status(200).json({ message: 'Logout successful' })
 }
 
 async function logoutAll(req, res) {
     await sessionModel.updateMany({ userId: req.userId }, { revoked: true })
-    res.clearCookie('refreshToken')
+    res.clearCookie('refreshToken', getRefreshCookieOptions())
     return res.status(200).json({ message: 'Logout from all devices successful' })
 }
 
