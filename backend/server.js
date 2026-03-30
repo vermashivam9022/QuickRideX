@@ -13,7 +13,7 @@ async function startServer() {
     try {
         await connectDb()
         await ensureUserIndexes()
-        app.listen(PORT, HOST, () => {
+        app.listen(PORT, () => {
             console.log(`server is listening at ${HOST}:${PORT}...`)
         })
     } catch (error) {
